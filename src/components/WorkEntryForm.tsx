@@ -3,7 +3,7 @@ import { PlusCircle } from 'lucide-react';
 import type { WorkEntry } from '../types';
 
 interface WorkEntryFormProps {
-  onSubmit: (entry: Omit<WorkEntry, 'id'>) => void;
+  onSubmit: (entry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => void;
 }
 
 export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
@@ -17,6 +17,14 @@ export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (formData.hours <= 0) {
+      alert('Hours must be greater than 0');
+      return;
+    }
+    if (!formData.description.trim()) {
+      alert('Description is required');
+      return;
+    }
     onSubmit(formData);
     setFormData(prev => ({ ...prev, description: '', hours: 0 }));
   };
@@ -33,6 +41,7 @@ export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
             value={formData.date}
             onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
+            max={new Date().toISOString().split('T')[0]}
           />
         </div>
 
@@ -40,7 +49,7 @@ export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
           <label className="block text-sm font-medium text-gray-700">Hours</label>
           <input
             type="number"
-            min="0"
+            min="0.5"
             step="0.5"
             value={formData.hours}
             onChange={e => setFormData(prev => ({ ...prev, hours: parseFloat(e.target.value) }))}
@@ -56,6 +65,7 @@ export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
           onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
           className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           rows={3}
+          required
         />
       </div>
 
@@ -79,7 +89,7 @@ export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
           <label className="block text-sm font-medium text-gray-700">Status</label>
           <select
             value={formData.status}
-            onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as any }))}
+            onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as WorkEntry['status'] }))}
             className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
           >
             <option value="completed">Completed</option>

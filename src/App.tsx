@@ -11,34 +11,74 @@ function App() {
   const [reportPeriod, setReportPeriod] = useState<Report['period']>('daily');
   const [session, setSession] = useState(null);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
-      checkUserRole(session?.user?.id);
+      if (session?.user) {
+        checkUserRole(session.user.id);
+        loadEntries(session.user.id);
+      }
     });
 
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
-      checkUserRole(session?.user?.id);
+      if (session?.user) {
+        checkUserRole(session.user.id);
+        loadEntries(session.user.id);
+      } else {
+        setEntries([]);
+      }
     });
 
     return () => subscription.unsubscribe();
   }, []);
 
-  const checkUserRole = async (userId: string | undefined) => {
-    if (!userId) return;
-    
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('role')
-      .eq('id', userId)
-      .single();
+  const loadEntries = async (userId: string) => {
+    setLoading(true);
+    try {
+      let query = supabase
+        .from('work_entries')
+        .select('*')
+        .order('date', { ascending: false });
 
-    if (!error && data) {
-      setIsAdmin(data.role === 'admin');
+      if (!isAdmin) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data, error } = await query;
+
+      if (error) throw error;
+
+      if (data) {
+        setEntries(data);
+      }
+    } catch (error) {
+      console.error('Error loading entries:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const checkUserRole = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('role')
+        .eq('id', userId)
+        .limit(1)
+        .maybeSingle();
+
+      if (error) throw error;
+
+      // Set isAdmin to false if no profile is found or if role is not admin
+      setIsAdmin(data?.role === 'admin');
+    } catch (error) {
+      console.error('Error checking user role:', error);
+      setIsAdmin(false); // Default to non-admin on error
     }
   };
 
@@ -46,12 +86,34 @@ function App() {
     await supabase.auth.signOut();
   };
 
-  const handleAddEntry = (newEntry: Omit<WorkEntry, 'id'>) => {
-    const entry: WorkEntry = {
-      ...newEntry,
-      id: crypto.randomUUID(),
-    };
-    setEntries(prev => [...prev, entry]);
+  const handleAddEntry = async (newEntry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => {
+    if (!session?.user?.id) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('work_entries')
+        .insert([
+          {
+            ...newEntry,
+            user_id: session.user.id,
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding entry:', error);
+        alert('Failed to add entry. Please try again.');
+        return;
+      }
+
+      if (data) {
+        setEntries(prev => [data, ...prev]);
+      }
+    } catch (error) {
+      console.error('Error adding entry:', error);
+      alert('Failed to add entry. Please try again.');
+    }
   };
 
   const filteredEntries = entries.filter(entry => {
@@ -107,18 +169,24 @@ function App() {
       </header>
 
       <main className="max-w-7xl mx-auto px-4 py-8 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-          <div>
-            <WorkEntryForm onSubmit={handleAddEntry} />
+        {loading ? (
+          <div className="flex justify-center items-center h-64">
+            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
           </div>
-          <div>
-            <ReportView 
-              entries={filteredEntries}
-              period={reportPeriod}
-              onPeriodChange={setReportPeriod}
-            />
+        ) : (
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
+            <div>
+              <WorkEntryForm onSubmit={handleAddEntry} />
+            </div>
+            <div>
+              <ReportView 
+                entries={filteredEntries}
+                period={reportPeriod}
+                onPeriodChange={setReportPeriod}
+              />
+            </div>
           </div>
-        </div>
+        )}
       </main>
     </div>
   );

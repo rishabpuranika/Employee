@@ -1,6 +1,7 @@
 import React from 'react';
-import { BarChart, Clock, Download } from 'lucide-react';
+import { BarChart, Clock, Download, FileText } from 'lucide-react';
 import type { WorkEntry, Report } from '../types';
+import { generatePDF } from '../lib/pdf';
 
 interface ReportViewProps {
   entries: WorkEntry[];
@@ -18,7 +19,7 @@ export function ReportView({ entries, period, onPeriodChange }: ReportViewProps)
     return acc;
   }, {} as Record<string, WorkEntry[]>);
 
-  const downloadReport = () => {
+  const downloadCSV = () => {
     // Create CSV content
     const headers = ['Date', 'Description', 'Hours', 'Category', 'Status'];
     const rows = entries.map(entry => [
@@ -62,6 +63,10 @@ export function ReportView({ entries, period, onPeriodChange }: ReportViewProps)
     window.URL.revokeObjectURL(url);
   };
 
+  const downloadPDF = () => {
+    generatePDF(entries, period, entriesByCategory);
+  };
+
   return (
     <div className="bg-white p-6 rounded-lg shadow-sm space-y-6">
       <div className="flex items-center justify-between">
@@ -84,13 +89,22 @@ export function ReportView({ entries, period, onPeriodChange }: ReportViewProps)
             <option value="yearly">Yearly</option>
           </select>
 
-          <button
-            onClick={downloadReport}
-            className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-          >
-            <Download className="w-4 h-4 mr-2" />
-            Download Report
-          </button>
+          <div className="flex space-x-2">
+            <button
+              onClick={downloadCSV}
+              className="flex items-center px-3 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
+            >
+              <Download className="w-4 h-4 mr-2" />
+              CSV
+            </button>
+            <button
+              onClick={downloadPDF}
+              className="flex items-center px-3 py-2 text-sm font-medium text-white bg-green-600 rounded-md hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500"
+            >
+              <FileText className="w-4 h-4 mr-2" />
+              PDF
+            </button>
+          </div>
         </div>
       </div>
 

@@ -20,6 +20,17 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
     return null;
   };
 
+  const createProfile = async (userId: string) => {
+    const { error } = await supabase
+      .from('profiles')
+      .insert([{ id: userId, role: 'user' }]);
+
+    if (error) {
+      console.error('Error creating profile:', error);
+      throw new Error('Failed to create user profile');
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -43,11 +54,16 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
         });
         if (error) throw error;
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
         });
         if (error) throw error;
+        
+        // Create profile for new user
+        if (data.user) {
+          await createProfile(data.user.id);
+        }
       }
       onAuthSuccess();
     } catch (err) {
