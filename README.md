@@ -1,0 +1,6 @@
+In .env file
+
+```bash
+VITE_SUPABASE_ANON_KEY
+VITE_SUPABASE_URL
+```
