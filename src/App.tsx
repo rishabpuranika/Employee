@@ -14,6 +14,9 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // Clear any existing session on mount
+    supabase.auth.signOut();
+
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       if (session?.user) {
@@ -31,6 +34,7 @@ function App() {
         loadEntries(session.user.id);
       } else {
         setEntries([]);
+        setIsAdmin(false);
       }
     });
 
@@ -74,16 +78,18 @@ function App() {
 
       if (error) throw error;
 
-      // Set isAdmin to false if no profile is found or if role is not admin
       setIsAdmin(data?.role === 'admin');
     } catch (error) {
       console.error('Error checking user role:', error);
-      setIsAdmin(false); // Default to non-admin on error
+      setIsAdmin(false);
     }
   };
 
   const handleSignOut = async () => {
     await supabase.auth.signOut();
+    setSession(null);
+    setEntries([]);
+    setIsAdmin(false);
   };
 
   const handleAddEntry = async (newEntry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => {
@@ -120,7 +126,7 @@ function App() {
     const entryDate = new Date(entry.date);
     const now = new Date();
     const daysDiff = Math.floor((now.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
-    
+
     switch (reportPeriod) {
       case 'daily':
         return entryDate.toDateString() === now.toDateString();
@@ -129,13 +135,13 @@ function App() {
       case 'biweekly':
         return daysDiff <= 15;
       case 'monthly':
-        return entryDate.getMonth() === now.getMonth() && 
-               entryDate.getFullYear() === now.getFullYear();
+        return entryDate.getMonth() === now.getMonth() &&
+          entryDate.getFullYear() === now.getFullYear();
       case 'quarterly':
         const quarter = Math.floor(now.getMonth() / 3);
         const entryQuarter = Math.floor(entryDate.getMonth() / 3);
-        return entryQuarter === quarter && 
-               entryDate.getFullYear() === now.getFullYear();
+        return entryQuarter === quarter &&
+          entryDate.getFullYear() === now.getFullYear();
       case 'yearly':
         return entryDate.getFullYear() === now.getFullYear();
       default:
@@ -144,7 +150,7 @@ function App() {
   });
 
   if (!session) {
-    return <AuthForm onAuthSuccess={() => {}} />;
+    return <AuthForm onAuthSuccess={() => { }} />;
   }
 
   return (
@@ -179,7 +185,7 @@ function App() {
               <WorkEntryForm onSubmit={handleAddEntry} />
             </div>
             <div>
-              <ReportView 
+              <ReportView
                 entries={filteredEntries}
                 period={reportPeriod}
                 onPeriodChange={setReportPeriod}
