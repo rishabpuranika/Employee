@@ -21,13 +21,33 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
   };
 
   const createProfile = async (userId: string) => {
-    const { error } = await supabase
-      .from('profiles')
-      .insert([{ id: userId, role: 'user' }]);
+    try {
+      // First check if profile already exists
+      const { data: existingProfile, error: checkError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .single();
 
-    if (error) {
-      console.error('Error creating profile:', error);
-      throw new Error('Failed to create user profile');
+      if (checkError && checkError.code !== 'PGRST116') { // PGRST116 is "no rows returned"
+        console.error('Error checking profile:', checkError);
+        throw new Error('Failed to check user profile');
+      }
+
+      // If profile doesn't exist, create it
+      if (!existingProfile) {
+        const { error: insertError } = await supabase
+          .from('profiles')
+          .insert([{ id: userId, role: 'user' }]);
+
+        if (insertError) {
+          console.error('Error creating profile:', insertError);
+          throw new Error('Failed to create user profile');
+        }
+      }
+    } catch (error) {
+      console.error('Error in createProfile:', error);
+      throw error;
     }
   };
 
@@ -48,25 +68,31 @@ export function AuthForm({ onAuthSuccess }: AuthFormProps) {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
           email,
           password,
         });
-        if (error) throw error;
+        if (signInError) throw signInError;
+
+        // Ensure profile exists for login too
+        if (signInData.user) {
+          await createProfile(signInData.user.id);
+        }
       } else {
-        const { data, error } = await supabase.auth.signUp({
+        const { data: signUpData, error: signUpError } = await supabase.auth.signUp({
           email,
           password,
         });
-        if (error) throw error;
-        
+        if (signUpError) throw signUpError;
+
         // Create profile for new user
-        if (data.user) {
-          await createProfile(data.user.id);
+        if (signUpData.user) {
+          await createProfile(signUpData.user.id);
         }
       }
       onAuthSuccess();
     } catch (err) {
+      console.error('Auth error:', err);
       setError(err instanceof Error ? err.message : 'An error occurred');
     } finally {
       setLoading(false);

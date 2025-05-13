@@ -9,6 +9,13 @@ import jsPDF from 'jspdf';
 import 'jspdf-autotable';
 import { Session } from '@supabase/supabase-js';
 
+// Add type declaration for jsPDF.autoTable
+declare module 'jspdf' {
+  interface jsPDF {
+    autoTable: (options: any) => jsPDF;
+  }
+}
+
 function App() {
   const [entries, setEntries] = useState<WorkEntry[]>([]);
   const [reportPeriod, setReportPeriod] = useState<Report['period']>('daily');
@@ -21,8 +28,10 @@ function App() {
     // supabase.auth.signOut();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
+      console.log('Initial session:', session);
       setSession(session);
       if (session?.user) {
+        console.log('User ID from session:', session.user.id);
         checkUserRole(session.user.id);
         loadEntries(session.user.id);
       }
@@ -31,8 +40,10 @@ function App() {
     const {
       data: { subscription },
     } = supabase.auth.onAuthStateChange((_event, session) => {
+      console.log('Auth state changed:', _event, session);
       setSession(session);
       if (session?.user) {
+        console.log('User ID from auth change:', session.user.id);
         checkUserRole(session.user.id);
         loadEntries(session.user.id);
       } else {
@@ -76,6 +87,7 @@ function App() {
 
   const checkUserRole = async (userId: string) => {
     try {
+      console.log('Checking role for user:', userId);
       const { data, error } = await supabase
         .from('profiles')
         .select('role')
@@ -83,8 +95,12 @@ function App() {
         .limit(1)
         .maybeSingle();
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error checking user role:', error);
+        throw error;
+      }
 
+      console.log('Profile data:', data);
       setIsAdmin(data?.role === 'admin');
     } catch (error) {
       console.error('Error checking user role:', error);
@@ -93,10 +109,16 @@ function App() {
   };
 
   const handleSignOut = async () => {
-    await supabase.auth.signOut();
-    setSession(null);
-    setEntries([]);
-    setIsAdmin(false);
+    try {
+      await supabase.auth.signOut();
+      setSession(null);
+      setEntries([]);
+      setIsAdmin(false);
+      // Force reload the page to clear any cached state
+      window.location.reload();
+    } catch (error) {
+      console.error('Error signing out:', error);
+    }
   };
 
   const handleAddEntry = async (newEntry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => {
@@ -106,21 +128,88 @@ function App() {
     }
 
     try {
+      console.log('Current session:', session);
+      console.log('User ID for entry:', session.user.id);
       console.log('Submitting entry:', newEntry);
+
+      // First verify the profile exists
+      const { data: profile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', session.user.id)
+        .maybeSingle();
+
+      if (profileError) {
+        console.error('Error checking profile:', profileError);
+        console.error('Profile error details:', {
+          code: profileError.code,
+          message: profileError.message,
+          details: profileError.details,
+          hint: profileError.hint
+        });
+        throw new Error(`Failed to verify user profile: ${profileError.message}`);
+      }
+
+      // If no profile exists, try to create one
+      if (!profile) {
+        console.log('No profile found, creating new profile for user:', session.user.id);
+
+        // First try to create profile with regular client
+        const { error: createProfileError } = await supabase
+          .from('profiles')
+          .insert([{
+            id: session.user.id,
+            role: 'user',
+            created_at: new Date().toISOString()
+          }]);
+
+        if (createProfileError) {
+          console.error('Error creating profile:', createProfileError);
+
+          // If regular client fails, try to create profile through auth.users trigger
+          const { error: authError } = await supabase.auth.updateUser({
+            data: { role: 'user' }
+          });
+
+          if (authError) {
+            console.error('Error updating user metadata:', authError);
+            throw new Error('Failed to create user profile. Please contact support.');
+          }
+        }
+        console.log('Profile created successfully');
+      } else {
+        console.log('Existing profile found:', profile);
+      }
+
+      // Transform the entry to match the database schema
+      const transformedEntry = {
+        user_id: session.user.id,
+        date: newEntry.proposed_date,
+        lesson_no: newEntry.lesson_no,
+        proposed_date: newEntry.proposed_date,
+        proposed_time: newEntry.proposed_time,
+        reasons: newEntry.reasons || null,
+        actual_date: newEntry.actual_date || null,
+        actual_time: newEntry.actual_time || null,
+        remarks: newEntry.remarks || null
+      };
+
+      console.log('Transformed entry:', transformedEntry);
 
       const { data, error } = await supabase
         .from('work_entries')
-        .insert([
-          {
-            ...newEntry,
-            user_id: session.user.id,
-          }
-        ])
+        .insert([transformedEntry])
         .select()
         .single();
 
       if (error) {
         console.error('Supabase insert error:', error);
+        console.error('Insert error details:', {
+          code: error.code,
+          message: error.message,
+          details: error.details,
+          hint: error.hint
+        });
         alert(`Failed to add entry: ${error.message}`);
         return;
       }
@@ -131,7 +220,16 @@ function App() {
       }
     } catch (error) {
       console.error('Error adding entry:', error);
-      alert('An unexpected error occurred while adding the entry. Please try again.');
+      if (error instanceof Error) {
+        console.error('Error details:', {
+          name: error.name,
+          message: error.message,
+          stack: error.stack
+        });
+        alert(`Error: ${error.message}`);
+      } else {
+        alert('An unexpected error occurred while adding the entry. Please try again.');
+      }
     }
   };
 
