@@ -7,16 +7,18 @@ import { ClipboardList, LogOut, Download } from 'lucide-react';
 import { supabase } from './lib/supabase';
 import jsPDF from 'jspdf';
 import 'jspdf-autotable';
+import { Session } from '@supabase/supabase-js';
 
 function App() {
   const [entries, setEntries] = useState<WorkEntry[]>([]);
   const [reportPeriod, setReportPeriod] = useState<Report['period']>('daily');
-  const [session, setSession] = useState(null);
+  const [session, setSession] = useState<Session | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    supabase.auth.signOut();
+    // For development, comment out signOut to prevent automatic logout
+    // supabase.auth.signOut();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
@@ -56,9 +58,13 @@ function App() {
 
       const { data, error } = await query;
 
-      if (error) throw error;
+      if (error) {
+        console.error('Supabase query error:', error);
+        throw error;
+      }
 
       if (data) {
+        console.log('Entries loaded:', data);
         setEntries(data);
       }
     } catch (error) {
@@ -94,9 +100,14 @@ function App() {
   };
 
   const handleAddEntry = async (newEntry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => {
-    if (!session?.user?.id) return;
+    if (!session?.user?.id) {
+      alert('You must be logged in to add an entry.');
+      return;
+    }
 
     try {
+      console.log('Submitting entry:', newEntry);
+
       const { data, error } = await supabase
         .from('work_entries')
         .insert([
@@ -109,17 +120,18 @@ function App() {
         .single();
 
       if (error) {
-        console.error('Error adding entry:', error);
-        alert('Failed to add entry. Please try again.');
+        console.error('Supabase insert error:', error);
+        alert(`Failed to add entry: ${error.message}`);
         return;
       }
 
       if (data) {
+        console.log('Entry added successfully:', data);
         setEntries(prev => [data, ...prev]);
       }
     } catch (error) {
       console.error('Error adding entry:', error);
-      alert('Failed to add entry. Please try again.');
+      alert('An unexpected error occurred while adding the entry. Please try again.');
     }
   };
 
@@ -145,6 +157,8 @@ function App() {
     const entryDate = new Date(entry.date);
     const now = new Date();
     const daysDiff = Math.floor((now.getTime() - entryDate.getTime()) / (1000 * 60 * 60 * 24));
+
+    console.log('Filtering entry:', entry.date, 'Days diff:', daysDiff, 'Period:', reportPeriod);
 
     switch (reportPeriod) {
       case 'daily':

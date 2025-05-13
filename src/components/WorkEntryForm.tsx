@@ -24,8 +24,10 @@ export const WorkEntryForm = ({ onSubmit }: { onSubmit: (entry: Omit<WorkEntry, 
     setIsSubmitting(true);
 
     try {
+      // Use proposed_date as the date field for filtering
       await onSubmit({
         ...formData,
+        date: formData.proposed_date, // Add the date field for filtering
         lesson_no: Number(formData.lesson_no),
       });
 
@@ -156,8 +158,8 @@ export const WorkEntryForm = ({ onSubmit }: { onSubmit: (entry: Omit<WorkEntry, 
           type="submit"
           disabled={isSubmitting}
           className={`px-4 py-2 rounded-md text-white font-medium transition-colors duration-200 ${isSubmitting
-              ? 'bg-blue-400 cursor-not-allowed'
-              : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
+            ? 'bg-blue-400 cursor-not-allowed'
+            : 'bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2'
             }`}
         >
           {isSubmitting ? (
