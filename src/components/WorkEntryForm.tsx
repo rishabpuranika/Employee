@@ -1,111 +1,49 @@
 import React, { useState } from 'react';
-import { PlusCircle } from 'lucide-react';
 import type { WorkEntry } from '../types';
 
-interface WorkEntryFormProps {
-  onSubmit: (entry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => void;
-}
-
-export function WorkEntryForm({ onSubmit }: WorkEntryFormProps) {
+export const WorkEntryForm = ({ onSubmit }: { onSubmit: (entry: Omit<WorkEntry, 'id' | 'user_id' | 'created_at'>) => void }) => {
   const [formData, setFormData] = useState({
-    date: new Date().toISOString().split('T')[0],
-    description: '',
-    hours: 0,
-    category: 'development',
-    status: 'completed' as const,
+    lesson_no: '',
+    proposed_date: '',
+    proposed_time: '',
+    reasons: '',
+    actual_date: '',
+    actual_time: '',
+    remarks: '',
   });
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
+    const { name, value } = e.target;
+    setFormData(prev => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (formData.hours <= 0) {
-      alert('Hours must be greater than 0');
-      return;
-    }
-    if (!formData.description.trim()) {
-      alert('Description is required');
-      return;
-    }
-    onSubmit(formData);
-    setFormData(prev => ({ ...prev, description: '', hours: 0 }));
+    onSubmit({
+      ...formData,
+      lesson_no: Number(formData.lesson_no),
+    });
+    setFormData({
+      lesson_no: '',
+      proposed_date: '',
+      proposed_time: '',
+      reasons: '',
+      actual_date: '',
+      actual_time: '',
+      remarks: '',
+    });
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4 bg-white p-6 rounded-lg shadow-sm">
-      <h3 className="text-lg font-semibold text-gray-800">Log Work Entry</h3>
-      
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Date</label>
-          <input
-            type="date"
-            value={formData.date}
-            onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-            max={new Date().toISOString().split('T')[0]}
-          />
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Hours</label>
-          <input
-            type="number"
-            min="0.5"
-            step="0.5"
-            value={formData.hours}
-            onChange={e => setFormData(prev => ({ ...prev, hours: parseFloat(e.target.value) }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          />
-        </div>
-      </div>
-
-      <div>
-        <label className="block text-sm font-medium text-gray-700">Description</label>
-        <textarea
-          value={formData.description}
-          onChange={e => setFormData(prev => ({ ...prev, description: e.target.value }))}
-          className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          rows={3}
-          required
-        />
-      </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Category</label>
-          <select
-            value={formData.category}
-            onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="development">Development</option>
-            <option value="meetings">Meetings</option>
-            <option value="planning">Planning</option>
-            <option value="research">Research</option>
-            <option value="other">Other</option>
-          </select>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700">Status</label>
-          <select
-            value={formData.status}
-            onChange={e => setFormData(prev => ({ ...prev, status: e.target.value as WorkEntry['status'] }))}
-            className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500"
-          >
-            <option value="completed">Completed</option>
-            <option value="in-progress">In Progress</option>
-            <option value="blocked">Blocked</option>
-          </select>
-        </div>
-      </div>
-
-      <button
-        type="submit"
-        className="flex items-center justify-center w-full px-4 py-2 text-sm font-medium text-white bg-blue-600 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500"
-      >
-        <PlusCircle className="w-4 h-4 mr-2" />
-        Add Entry
-      </button>
+    <form onSubmit={handleSubmit}>
+      <input name="lesson_no" value={formData.lesson_no} onChange={handleChange} placeholder="Lesson No." required />
+      <input name="proposed_date" value={formData.proposed_date} onChange={handleChange} placeholder="Proposed Date" required />
+      <input name="proposed_time" value={formData.proposed_time} onChange={handleChange} placeholder="Proposed Time" required />
+      <textarea name="reasons" value={formData.reasons} onChange={handleChange} placeholder="If not taken, Reasons" />
+      <input name="actual_date" value={formData.actual_date} onChange={handleChange} placeholder="Actual Date" />
+      <input name="actual_time" value={formData.actual_time} onChange={handleChange} placeholder="Actual Time" />
+      <textarea name="remarks" value={formData.remarks} onChange={handleChange} placeholder="Remarks" />
+      <button type="submit">Add Entry</button>
     </form>
   );
-}
+};

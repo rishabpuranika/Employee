@@ -1,13 +1,15 @@
-export interface WorkEntry {
+export type WorkEntry = {
   id: string;
   user_id: string;
-  date: string;
-  description: string;
-  hours: number;
-  category: string;
-  status: 'completed' | 'in-progress' | 'blocked';
-  created_at?: string;
-}
+  created_at: string;
+  lesson_no: number;
+  proposed_date: string;
+  proposed_time: string;
+  reasons: string;
+  actual_date: string;
+  actual_time: string;
+  remarks: string;
+};
 
 export interface Report {
   totalHours: number;

@@ -3,8 +3,10 @@ import { WorkEntryForm } from './components/WorkEntryForm';
 import { ReportView } from './components/ReportView';
 import { AuthForm } from './components/AuthForm';
 import type { WorkEntry, Report } from './types';
-import { ClipboardList, LogOut } from 'lucide-react';
+import { ClipboardList, LogOut, Download } from 'lucide-react';
 import { supabase } from './lib/supabase';
+import jsPDF from 'jspdf';
+import 'jspdf-autotable';
 
 function App() {
   const [entries, setEntries] = useState<WorkEntry[]>([]);
@@ -14,7 +16,6 @@ function App() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Clear any existing session on mount
     supabase.auth.signOut();
 
     supabase.auth.getSession().then(({ data: { session } }) => {
@@ -122,6 +123,24 @@ function App() {
     }
   };
 
+  const handleDownloadPDF = () => {
+    const doc = new jsPDF();
+    doc.text('Employee Work Tracker Report', 14, 10);
+    doc.autoTable({
+      head: [['Lesson No.', 'Proposed Date', 'Proposed Time', 'Reasons', 'Actual Date', 'Actual Time', 'Remarks']],
+      body: entries.map(entry => [
+        entry.lesson_no,
+        entry.proposed_date,
+        entry.proposed_time,
+        entry.reasons || 'N/A',
+        entry.actual_date || 'N/A',
+        entry.actual_time || 'N/A',
+        entry.remarks || 'N/A',
+      ]),
+    });
+    doc.save('work_tracker_report.pdf');
+  };
+
   const filteredEntries = entries.filter(entry => {
     const entryDate = new Date(entry.date);
     const now = new Date();
@@ -163,13 +182,22 @@ function App() {
               Employee Work Tracker
               {isAdmin && <span className="ml-2 text-sm bg-blue-100 text-blue-800 px-2 py-1 rounded">Admin</span>}
             </h1>
-            <button
-              onClick={handleSignOut}
-              className="flex items-center text-gray-600 hover:text-gray-900"
-            >
-              <LogOut className="w-5 h-5 mr-1" />
-              Sign Out
-            </button>
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={handleDownloadPDF}
+                className="flex items-center text-gray-600 hover:text-gray-900"
+              >
+                <Download className="w-5 h-5 mr-1" />
+                Download PDF
+              </button>
+              <button
+                onClick={handleSignOut}
+                className="flex items-center text-gray-600 hover:text-gray-900"
+              >
+                <LogOut className="w-5 h-5 mr-1" />
+                Sign Out
+              </button>
+            </div>
           </div>
         </div>
       </header>
