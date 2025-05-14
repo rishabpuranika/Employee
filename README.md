@@ -2,7 +2,6 @@
 
 A modern web application for tracking employee work updates, built with React, TypeScript, Tailwind CSS, and Supabase.
 
-![Employee Work Tracker Dashboard](https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=1800&ixlib=rb-4.0.3)
 
 ## Features
 
